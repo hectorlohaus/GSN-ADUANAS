@@ -169,6 +169,8 @@ class RegistroService {
         'fecha_nacimiento': _formatarFechaParaSupabase(datos.fechaNacimiento),
         'fecha_emision': _formatarFechaParaSupabase(datos.fechaEmision),
         'fecha_vencimiento': _formatarFechaParaSupabase(datos.fechaVencimiento),
+        'nacionalidad': datos.nacionalidad,
+        'sexo': datos.sexo,
         'foto_match': fotoMatchUrl,
         'foto_cara_carnet': fotoCaraCarnetUrl,
         'creado_en': DateTime.now().toIso8601String(),

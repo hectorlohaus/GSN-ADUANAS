@@ -36,6 +36,7 @@ class _ConfirmationViewState extends State<ConfirmationView> {
   late final TextEditingController _fechaNacimientoController;
   late final TextEditingController _fechaEmisionController;
   late final TextEditingController _fechaVencimientoController;
+  late final TextEditingController _sexoController;
 
   @override
   void initState() {
@@ -62,6 +63,7 @@ class _ConfirmationViewState extends State<ConfirmationView> {
     _fechaVencimientoController = TextEditingController(
       text: widget.initialData.fechaVencimiento,
     );
+    _sexoController = TextEditingController(text: widget.initialData.sexo);
   }
 
   @override
@@ -74,6 +76,7 @@ class _ConfirmationViewState extends State<ConfirmationView> {
     _fechaNacimientoController.dispose();
     _fechaEmisionController.dispose();
     _fechaVencimientoController.dispose();
+    _sexoController.dispose();
     super.dispose();
   }
 
@@ -96,6 +99,7 @@ class _ConfirmationViewState extends State<ConfirmationView> {
         fechaNacimiento: _fechaNacimientoController.text,
         fechaEmision: _fechaEmisionController.text,
         fechaVencimiento: _fechaVencimientoController.text,
+        sexo: _sexoController.text,
       );
 
       // Guardamos los datos en Supabase antes de continuar
@@ -170,6 +174,10 @@ class _ConfirmationViewState extends State<ConfirmationView> {
                 _buildTextFormField(
                   controller: _nacionalidadController,
                   label: 'Nacionalidad',
+                ),
+                _buildTextFormField(
+                  controller: _sexoController,
+                  label: 'Sexo',
                 ),
               ]),
 

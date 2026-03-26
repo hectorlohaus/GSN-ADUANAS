@@ -106,7 +106,8 @@ class _FaceMatchScreenState extends State<FaceMatchScreen> {
           apellidos: docData['apellidos'],
           run: docData['rut'],
           nacionalidad: docData['nacionalidad'],
-          fechaEmision: docData['fecha_vencimiento'],
+          sexo: docData['sexo'], // Mapeado desde el nuevo JSON
+          fechaEmision: docData['fecha_emision'], // Mapeado correctamente desde 'fecha_emision'
           fechaNacimiento: docData['fecha_nacimiento'],
           fechaVencimiento: docData['fecha_vencimiento'],
           numeroDocumento: docData['numero_documento'],
@@ -144,10 +145,10 @@ class _FaceMatchScreenState extends State<FaceMatchScreen> {
           nombres: data['nombres'],
           apellidos: data['apellidos'],
           fechaNacimiento: data['fecha_nacimiento'],
-          fechaEmision: data['fecha_emision'],
+          fechaEmision: data['fecha_ultimo_control'], // Mapeado desde el nuevo JSON
           fechaVencimiento: data['fecha_vencimiento'],
           clase: data['clase_licencia'],
-          direccion: data['direccion'],
+          direccion: data['domicilio'], // Mapeado desde 'domicilio' en vez de 'direccion'
           fotoLicencia: frontImageBase64,
         );
 

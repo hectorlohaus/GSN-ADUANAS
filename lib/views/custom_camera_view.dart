@@ -261,19 +261,93 @@ class _CustomCameraViewState extends State<CustomCameraView> {
           child: SizedBox(
             width: holeWidth,
             height: holeHeight,
-            child: CustomPaint(
-              painter: DottedBorderPainter(
-                color: Colors.blueAccent,
-                strokeWidth: 2.0,
-                gap: 6.0,
-                borderRadius: borderRadius,
-              ),
+            child: Stack(
+              children: [
+                CustomPaint(
+                  size: Size(holeWidth, holeHeight),
+                  painter: DottedBorderPainter(
+                    color: Colors.blueAccent,
+                    strokeWidth: 2.0,
+                    gap: 6.0,
+                    borderRadius: borderRadius,
+                  ),
+                ),
+                // Solo para documentos: agregar silueta de "personita" para guiar la posición de la foto
+                if (widget.mode == CameraMode.document)
+                  Positioned(
+                    left: 20,
+                    bottom: 20,
+                    child: CustomPaint(
+                      size: Size(holeWidth * 0.25, holeHeight * 0.6),
+                      painter: PersonSilhouettePainter(
+                        color: Colors.blueAccent.withValues(alpha: 0.5),
+                        strokeWidth: 2.0,
+                        gap: 4.0,
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
         ),
       ],
     );
   }
+}
+
+class PersonSilhouettePainter extends CustomPainter {
+  final Color color;
+  final double strokeWidth;
+  final double gap;
+
+  PersonSilhouettePainter({
+    required this.color,
+    this.strokeWidth = 2.0,
+    this.gap = 5.0,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Paint paint = Paint()
+      ..color = color
+      ..strokeWidth = strokeWidth
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    final Path path = Path();
+    final double w = size.width;
+    final double h = size.height;
+
+    // Cabeza (Círculo)
+    final double headRadius = w * 0.35;
+    path.addOval(Rect.fromCircle(
+      center: Offset(w / 2, headRadius + 5),
+      radius: headRadius,
+    ));
+
+    // Hombros / Cuerpo (Arco)
+    path.moveTo(0, h);
+    path.quadraticBezierTo(0, headRadius * 2 + 10, w / 2, headRadius * 2 + 10);
+    path.quadraticBezierTo(w, headRadius * 2 + 10, w, h);
+
+    // Aplicar punteado
+    final Path dashPath = Path();
+    for (ui.PathMetric pathMetric in path.computeMetrics()) {
+      double distance = 0.0;
+      while (distance < pathMetric.length) {
+        dashPath.addPath(
+          pathMetric.extractPath(distance, distance + gap),
+          Offset.zero,
+        );
+        distance += gap * 2;
+      }
+    }
+
+    canvas.drawPath(dashPath, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant PersonSilhouettePainter oldDelegate) => false;
 }
 
 class DottedBorderPainter extends CustomPainter {
