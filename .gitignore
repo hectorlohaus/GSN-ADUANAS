@@ -47,3 +47,4 @@ app.*.map.json
 # Credenciales sensibles
 lib/services/supabase_service.dart
 DOCUMENTACION_API.md
+bd/
