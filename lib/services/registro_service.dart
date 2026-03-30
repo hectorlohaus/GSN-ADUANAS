@@ -7,7 +7,7 @@ import 'package:prueba_match/models/license_data.dart';
 import 'package:prueba_match/utils/rut_utils.dart';
 import 'package:prueba_match/utils/document_utils.dart';
 import 'package:prueba_match/utils/image_helper.dart';
-import 'package:prueba_match/views/take_photo_view.dart';
+import 'package:prueba_match/views/transport_document_view.dart';
 
 enum EstadoVerificacionChofer { valido, vencido, noExiste }
 
@@ -88,6 +88,49 @@ class RegistroService {
     }
   }
 
+  Future<ResultadoVerificacion> verificarEstadoLicencia(int idChofer) async {
+    try {
+      final response = await _client
+          .from('licencias_conducir')
+          .select()
+          .eq('id_chofer', idChofer)
+          .order('creado_en', ascending: false)
+          .limit(1)
+          .maybeSingle();
+
+      if (response == null) {
+        return ResultadoVerificacion(estado: EstadoVerificacionChofer.noExiste);
+      }
+
+      final fechaVencimientoStr = response['fecha_vencimiento'] as String?;
+      if (fechaVencimientoStr == null) {
+        // Asumimos vencida o que no sabemos si está vigente, forzamos escaneo 
+        return ResultadoVerificacion(
+          estado: EstadoVerificacionChofer.vencido,
+          datosChofer: response,
+        );
+      }
+
+      final fechaVencimiento = DateTime.parse(fechaVencimientoStr);
+      final hoy = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+
+      if (fechaVencimiento.isBefore(hoy)) {
+        return ResultadoVerificacion(
+          estado: EstadoVerificacionChofer.vencido,
+          datosChofer: response,
+        );
+      }
+
+      return ResultadoVerificacion(
+        estado: EstadoVerificacionChofer.valido,
+        datosChofer: response,
+      );
+    } catch (e) {
+      debugPrint('Error al verificar estado de licencia: $e');
+      rethrow;
+    }
+  }
+
   Future<void> asociarChoferARegistro(int registroId, int choferId) async {
     try {
       await _client
@@ -161,28 +204,76 @@ class RegistroService {
         debugPrint('foto_cara_carnet subida: $fotoCaraCarnetUrl');
       }
 
-      final datosUpsert = {
-        'rut_chofer': rutFormateado,
-        'nombres_chofer': datos.nombres,
-        'apellidos_chofer': datos.apellidos,
-        'numero_documento': numeroDocumentoFormateado,
-        'fecha_nacimiento': _formatarFechaParaSupabase(datos.fechaNacimiento),
-        'fecha_emision': _formatarFechaParaSupabase(datos.fechaEmision),
-        'fecha_vencimiento': _formatarFechaParaSupabase(datos.fechaVencimiento),
-        'nacionalidad': datos.nacionalidad,
-        'sexo': datos.sexo,
-        'foto_match': fotoMatchUrl,
-        'foto_cara_carnet': fotoCaraCarnetUrl,
-        'creado_en': DateTime.now().toIso8601String(),
-      };
-
-      final response = await _client
+      final existingResponse = await _client
           .from('choferes')
-          .upsert(datosUpsert, onConflict: 'rut_chofer')
-          .select('id_chofer')
-          .single();
+          .select('id_chofer, fecha_vencimiento')
+          .eq('rut_chofer', rutFormateado)
+          .maybeSingle();
 
-      final choferId = response['id_chofer'] as int;
+      int choferId;
+
+      if (existingResponse != null) {
+        // EXISTE -> Verificamos si está vencido antes de actualizar
+        choferId = existingResponse['id_chofer'] as int;
+
+        final fechaVencimientoStr = existingResponse['fecha_vencimiento'] as String?;
+        bool isExpired = true;
+
+        if (fechaVencimientoStr != null) {
+          final fechaVencimientoDB = DateTime.parse(fechaVencimientoStr);
+          final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+          if (fechaVencimientoDB.isAfter(today) ||
+              fechaVencimientoDB.isAtSameMomentAs(today)) {
+            isExpired = false;
+          }
+        }
+
+        if (isExpired) {
+          final datosUpdate = {
+            'numero_documento': numeroDocumentoFormateado,
+            'fecha_emision': _formatarFechaParaSupabase(datos.fechaEmision),
+            'fecha_vencimiento': _formatarFechaParaSupabase(datos.fechaVencimiento),
+            'actualizado_en': DateTime.now().toIso8601String(),
+          };
+          
+          if (fotoMatchUrl != null) datosUpdate['foto_match'] = fotoMatchUrl;
+          if (fotoCaraCarnetUrl != null) datosUpdate['foto_cara_carnet'] = fotoCaraCarnetUrl;
+
+          await _client
+              .from('choferes')
+              .update(datosUpdate)
+              .eq('id_chofer', choferId);
+              
+          debugPrint('Chofer existente vencido. Se actualizaron datos de documento y fotos.');
+        } else {
+          debugPrint('Chofer existente vigente. No se actualizarán sus datos base.');
+        }
+            
+      } else {
+        // NO EXISTE -> Insertamos registro completo nuevo
+        final datosInsert = {
+          'rut_chofer': rutFormateado,
+          'nombres_chofer': datos.nombres,
+          'apellidos_chofer': datos.apellidos,
+          'numero_documento': numeroDocumentoFormateado,
+          'fecha_nacimiento': _formatarFechaParaSupabase(datos.fechaNacimiento),
+          'fecha_emision': _formatarFechaParaSupabase(datos.fechaEmision),
+          'fecha_vencimiento': _formatarFechaParaSupabase(datos.fechaVencimiento),
+          'nacionalidad': datos.nacionalidad,
+          'sexo': datos.sexo,
+          'foto_match': fotoMatchUrl,
+          'foto_cara_carnet': fotoCaraCarnetUrl,
+          'creado_en': DateTime.now().toIso8601String(),
+        };
+
+        final response = await _client
+            .from('choferes')
+            .insert(datosInsert)
+            .select('id_chofer')
+            .single();
+
+        choferId = response['id_chofer'] as int;
+      }
 
       await _client
           .from('registro_choferes')
@@ -269,8 +360,8 @@ class RegistroService {
       final existingLicenseResponse = await _client
           .from('licencias_conducir')
           .select('id_licencia, fecha_vencimiento')
-          .eq('rut', rutLicenciaFormateado)
-          .order('creado_en', ascending: false)
+          .eq('id_chofer', choferId) // Buscar por id_chofer
+          .order('creado_en', ascending: false) // Siempre revisar el último creado
           .limit(1)
           .maybeSingle();
 
@@ -282,14 +373,15 @@ class RegistroService {
 
         if (fechaVencimientoStr != null) {
           final fechaVencimiento = DateTime.parse(fechaVencimientoStr);
-          if (fechaVencimiento.isAfter(DateTime.now()) ||
-              fechaVencimiento.isAtSameMomentAs(DateTime.now())) {
+          final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+          if (fechaVencimiento.isAfter(today) ||
+              fechaVencimiento.isAtSameMomentAs(today)) {
             isExpired = false;
           }
         }
 
         if (!isExpired) {
-          // VIGENTE -> ACTUALIZAR (Sobrescribir)
+          // VIGENTE -> ACTUALIZAR (Sobrescribir el último vigente)
           final idLicencia = existingLicenseResponse['id_licencia'];
           await _client
               .from('licencias_conducir')
@@ -579,12 +671,23 @@ class RegistroService {
         'AUG': '08',
         'DEC': '12',
       };
-      final parts = fechaOcr.split(RegExp(r'[\s./-]'));
+      final parts = fechaOcr.trim().split(RegExp(r'[\s./-]+'));
       if (parts.length != 3) return null;
-      final day = parts[0].padLeft(2, '0');
-      final monthNum =
-          monthMap[parts[1].toUpperCase()] ?? parts[1].padLeft(2, '0');
-      final year = parts[2].length == 2 ? '20${parts[2]}' : parts[2];
+
+      String year, monthNum, day;
+
+      if (parts[0].length == 4) {
+        // yyyy-mm-dd or similar
+        year = parts[0];
+        monthNum = monthMap[parts[1].toUpperCase()] ?? parts[1].padLeft(2, '0');
+        day = parts[2].padLeft(2, '0');
+      } else {
+        // dd-mm-yyyy or similar
+        day = parts[0].padLeft(2, '0');
+        monthNum = monthMap[parts[1].toUpperCase()] ?? parts[1].padLeft(2, '0');
+        year = parts[2].length == 2 ? '20${parts[2]}' : parts[2];
+      }
+
       return '$year-$monthNum-$day';
     } catch (e) {
       debugPrint('No se pudo formatear la fecha "$fechaOcr": $e');

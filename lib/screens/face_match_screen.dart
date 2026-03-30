@@ -6,22 +6,14 @@ import 'package:prueba_match/models/chofer_match_data.dart';
 import 'package:prueba_match/services/face_match_service.dart';
 import 'package:prueba_match/utils/image_helper.dart';
 import 'package:prueba_match/views/confirmation_view.dart';
-import 'package:prueba_match/models/license_data.dart';
-import 'package:prueba_match/views/license_confirmation_view.dart';
 import 'package:prueba_match/views/custom_camera_view.dart';
-
-enum FaceMatchMode { match, scanOnly }
 
 class FaceMatchScreen extends StatefulWidget {
   final int registroId;
-  final FaceMatchMode mode;
-  final ChoferMatchData? existingChoferData; // For scanOnly mode
 
   const FaceMatchScreen({
     super.key,
     required this.registroId,
-    this.mode = FaceMatchMode.match,
-    this.existingChoferData,
   });
 
   @override
@@ -61,7 +53,7 @@ class _FaceMatchScreenState extends State<FaceMatchScreen> {
 
   Future<void> _process() async {
     // Validation
-    if (widget.mode == FaceMatchMode.match && _selfieFile == null) {
+    if (_selfieFile == null) {
       _showSnack("Debes capturar la selfie.");
       return;
     }
@@ -76,102 +68,64 @@ class _FaceMatchScreenState extends State<FaceMatchScreen> {
     });
 
     try {
-      if (widget.mode == FaceMatchMode.match) {
-        // FULL VERIFICATION (Match + OCR)
-        final response = await _faceMatchService.fullVerification(
-          documentFile: _documentFile!,
-          selfieFile: _selfieFile!,
-        );
+      // FULL VERIFICATION (Match + OCR)
+      final response = await _faceMatchService.fullVerification(
+        documentFile: _documentFile!,
+        selfieFile: _selfieFile!,
+      );
 
-        final data = response['data'];
-        final bool verified = data['identity_verified'] ?? false;
-        final docData = data['document'];
-        final matchData = data['face_match'];
+      final data = response['data'];
+      final bool verified = data['identity_verified'] ?? false;
+      final docData = data['document'];
+      final matchData = data['face_match'];
 
-        if (!verified) {
-          final sim = matchData?['similarity_percentage'] ?? 0;
-          _showSnack("Identidad no verificada. Similitud: $sim%");
-          return;
-        }
+      if (!verified) {
+        final sim = matchData?['similarity_percentage'] ?? 0;
+        _showSnack("Identidad no verificada. Similitud: $sim%");
+        return;
+      }
 
-        // Convert files to Base64 to mimic FaceTec return
-        final selfieBytes = await _selfieFile!.readAsBytes();
-        final docBytes = await _documentFile!.readAsBytes();
-        final String livenessImageBase64 = base64Encode(selfieBytes);
-        final String idFaceBase64 = base64Encode(docBytes);
+      // Convert files to Base64 to mimic FaceTec return
+      final selfieBytes = await _selfieFile!.readAsBytes();
+      final docBytes = await _documentFile!.readAsBytes();
+      final String livenessImageBase64 = base64Encode(selfieBytes);
+      final String idFaceBase64 = base64Encode(docBytes);
 
-        // Map to ChoferMatchData
-        final ocrData = ChoferMatchData(
-          nombres: docData['nombres'],
-          apellidos: docData['apellidos'],
-          run: docData['rut'],
-          nacionalidad: docData['nacionalidad'],
-          sexo: docData['sexo'], // Mapeado desde el nuevo JSON
-          fechaEmision: docData['fecha_emision'], // Mapeado correctamente desde 'fecha_emision'
-          fechaNacimiento: docData['fecha_nacimiento'],
-          fechaVencimiento: docData['fecha_vencimiento'],
-          numeroDocumento: docData['numero_documento'],
-          fotoMatch: livenessImageBase64,
-          fotoCaraCarnet: idFaceBase64,
-        );
+      // Map to ChoferMatchData
+      final ocrData = ChoferMatchData(
+        nombres: docData['nombres'],
+        apellidos: docData['apellidos'],
+        run: docData['rut'],
+        nacionalidad: docData['nacionalidad'],
+        sexo: docData['sexo'], // Mapeado desde el nuevo JSON
+        fechaEmision: docData['fecha_emision'], // Mapeado correctamente desde 'fecha_emision'
+        fechaNacimiento: docData['fecha_nacimiento'],
+        fechaVencimiento: docData['fecha_vencimiento'],
+        numeroDocumento: docData['numero_documento'],
+        fotoMatch: livenessImageBase64,
+        fotoCaraCarnet: idFaceBase64,
+      );
 
-        if (!mounted) return;
+      if (!mounted) return;
 
-        // Navigate to ConfirmationView
-        // We expect ConfirmationView to return confirmed data
-        final ChoferMatchData? confirmedData = await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ConfirmationView(
-              initialData: ocrData,
-              registroId: widget.registroId,
-            ),
+      // Navigate to ConfirmationView
+      // We expect ConfirmationView to return confirmed data
+      final ChoferMatchData? confirmedData = await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ConfirmationView(
+            initialData: ocrData,
+            registroId: widget.registroId,
           ),
-        );
+        ),
+      );
 
-        // If verified, pop with success data
-        if (confirmedData != null && mounted) {
-          Navigator.pop(context, confirmedData);
-        }
-      } else {
-        // SCAN ONLY (OCR)
-        final response = await _faceMatchService.processOCR(_documentFile!);
-        final data = response['data'];
-        final docBytes = await _documentFile!.readAsBytes();
-        final String frontImageBase64 = base64Encode(docBytes);
-
-        final licenseData = LicenseData(
-          rut: data['rut'],
-          nombres: data['nombres'],
-          apellidos: data['apellidos'],
-          fechaNacimiento: data['fecha_nacimiento'],
-          fechaEmision: data['fecha_ultimo_control'], // Mapeado desde el nuevo JSON
-          fechaVencimiento: data['fecha_vencimiento'],
-          clase: data['clase_licencia'],
-          direccion: data['domicilio'], // Mapeado desde 'domicilio' en vez de 'direccion'
-          fotoLicencia: frontImageBase64,
-        );
-
-        if (!mounted) return;
-
-        // Navigate to LicenseConfirmationView
-        final LicenseData? confirmedData = await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => LicenseConfirmationView(
-              initialData: licenseData,
-              registroId: widget.registroId,
-            ),
-          ),
-        );
-
-        // If verified, pop with success data
-        if (confirmedData != null && mounted) {
-          Navigator.pop(context, confirmedData);
-        }
+      // If verified, pop with success data
+      if (confirmedData != null && mounted) {
+        Navigator.pop(context, confirmedData);
       }
     } catch (e) {
-      _showSnack("Error: $e");
+      _showSnack("Error: ${e.toString()}");
     } finally {
       if (mounted) {
         setState(() {
@@ -188,17 +142,12 @@ class _FaceMatchScreenState extends State<FaceMatchScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final bool isMatchMode = widget.mode == FaceMatchMode.match;
-    final String title = isMatchMode
-        ? "Verificación Facial"
-        : "Escaneo de Licencia";
-    final String instruction = isMatchMode
-        ? "Por favor, captura una selfie clara y una foto de tu documento de identidad."
-        : "Captura una foto clara de la licencia de conducir.";
+    const String title = "Verificación Facial";
+    const String instruction = "Por favor, captura una selfie clara y una foto de tu documento de identidad.";
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(title),
+        title: const Text(title),
         backgroundColor: AppColors.background,
         foregroundColor: AppColors.textPrimary,
         elevation: 0,
@@ -210,18 +159,16 @@ class _FaceMatchScreenState extends State<FaceMatchScreen> {
           children: [
             _buildInstructionCard(instruction),
             const SizedBox(height: 24),
-            if (isMatchMode) ...[
-              _buildPhotoCard(
-                "Selfie",
-                "Toca para capturar",
-                _selfieFile,
-                Icons.face_retouching_natural,
-                () => _pickPhoto(true),
-              ),
-              const SizedBox(height: 16),
-            ],
             _buildPhotoCard(
-              isMatchMode ? "Carnet / Documento" : "Licencia de Conducir",
+              "Selfie",
+              "Toca para capturar",
+              _selfieFile,
+              Icons.face_retouching_natural,
+              () => _pickPhoto(true),
+            ),
+            const SizedBox(height: 16),
+            _buildPhotoCard(
+              "Carnet / Documento",
               "Toca para capturar",
               _documentFile,
               Icons.credit_card,
@@ -249,9 +196,9 @@ class _FaceMatchScreenState extends State<FaceMatchScreen> {
                 child: ElevatedButton.icon(
                   onPressed: _process,
                   icon: const Icon(Icons.check_circle_outline),
-                  label: Text(
-                    isMatchMode ? "VALIDAR IDENTIDAD" : "VALIDAR LICENCIA",
-                    style: const TextStyle(
+                  label: const Text(
+                    "VALIDAR IDENTIDAD",
+                    style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                     ),

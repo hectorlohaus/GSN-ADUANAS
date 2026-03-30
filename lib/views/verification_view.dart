@@ -4,6 +4,7 @@ import 'package:prueba_match/models/chofer_match_data.dart';
 import 'package:prueba_match/screens/face_match_screen.dart';
 import 'package:prueba_match/services/registro_service.dart';
 import 'package:prueba_match/views/id_scan_view.dart';
+import 'package:prueba_match/views/transport_document_view.dart';
 import 'package:prueba_match/widgets/step_header.dart';
 // import '../facetec_service.dart'; // FACETEC EXCLUDED
 
@@ -70,17 +71,39 @@ class _VerificationViewState extends State<VerificationView> {
           resultado.datosChofer!,
         );
 
-        // 3. Espera un momento y navega a la siguiente pantalla correcta (IDScanView).
+        // 3. Verifica estado de la licencia asociada
+        final resultLicencia = await _registroService.verificarEstadoLicencia(choferId);
+        
+        // 4. Espera un momento y navega a la siguiente pantalla correcta.
         await Future.delayed(const Duration(seconds: 2));
         if (mounted) {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => IDScanView(
-                registroId: widget.registroId,
-                datosChoferCarnet: datosChoferDesdeDB,
+          if (resultLicencia.estado == EstadoVerificacionChofer.valido) {
+            // Chofer y licencia válidos -> Saltamos directo a fotos de container
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (context) => TransportDocumentView(
+                  registroId: widget.registroId,
+                  photoType: PhotoType.bl, 
+                 ),
               ),
-            ),
-          );
+            );
+          } else {
+            // Licencia no existe o está vencida -> Ir a escaneo
+            setState(() {
+              _statusMessage = 'Licencia no válida o no encontrada. Preparando escáner...';
+            });
+            await Future.delayed(const Duration(seconds: 1));
+            if (mounted) {
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(
+                  builder: (context) => IDScanView(
+                    registroId: widget.registroId,
+                    datosChoferCarnet: datosChoferDesdeDB,
+                  ),
+                ),
+              );
+            }
+          }
         }
       } else {
         String message;
@@ -117,13 +140,12 @@ class _VerificationViewState extends State<VerificationView> {
   // ... (inside class)
 
   Future<void> _startVerification() async {
-    // Navigate to FaceMatchScreen in MATCH mode and wait for result
+    // Navigate to FaceMatchScreen and wait for result
     final ChoferMatchData? confirmedData = await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => FaceMatchScreen(
           registroId: widget.registroId,
-          mode: FaceMatchMode.match,
         ),
       ),
     );

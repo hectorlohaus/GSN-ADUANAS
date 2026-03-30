@@ -38,6 +38,38 @@ class _ConfirmationViewState extends State<ConfirmationView> {
   late final TextEditingController _fechaVencimientoController;
   late final TextEditingController _sexoController;
 
+  String? _formatDateForUI(String? sourceDate) {
+    if (sourceDate == null || sourceDate.isEmpty) return sourceDate;
+    
+    const monthMap = {
+      'ENE': '01', 'FEB': '02', 'MAR': '03', 'ABR': '04', 'MAY': '05', 'JUN': '06',
+      'JUL': '07', 'AGO': '08', 'SEP': '09', 'OCT': '10', 'NOV': '11', 'DIC': '12',
+      'JAN': '01', 'APR': '04', 'AUG': '08', 'DEC': '12',
+    };
+
+    final parts = sourceDate.trim().split(RegExp(r'[\s./-]+'));
+    
+    if (parts.length == 3) {
+      String day, monthNum, year;
+
+      if (parts[0].length == 4) {
+        // Formato yyyy-MM-dd
+        year = parts[0];
+        monthNum = monthMap[parts[1].toUpperCase()] ?? parts[1].padLeft(2, '0');
+        day = parts[2].padLeft(2, '0');
+      } else {
+        // Formato dd-MM-yyyy o similar
+        day = parts[0].padLeft(2, '0');
+        monthNum = monthMap[parts[1].toUpperCase()] ?? parts[1].padLeft(2, '0');
+        year = parts[2].length == 2 ? '20${parts[2]}' : parts[2];
+      }
+
+      return '$day/$monthNum/$year';
+    }
+
+    return sourceDate;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -55,13 +87,13 @@ class _ConfirmationViewState extends State<ConfirmationView> {
       text: widget.initialData.nacionalidad,
     );
     _fechaNacimientoController = TextEditingController(
-      text: widget.initialData.fechaNacimiento,
+      text: _formatDateForUI(widget.initialData.fechaNacimiento),
     );
     _fechaEmisionController = TextEditingController(
-      text: widget.initialData.fechaEmision,
+      text: _formatDateForUI(widget.initialData.fechaEmision),
     );
     _fechaVencimientoController = TextEditingController(
-      text: widget.initialData.fechaVencimiento,
+      text: _formatDateForUI(widget.initialData.fechaVencimiento),
     );
     _sexoController = TextEditingController(text: widget.initialData.sexo);
   }

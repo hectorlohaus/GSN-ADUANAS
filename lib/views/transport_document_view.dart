@@ -10,21 +10,21 @@ import 'package:prueba_match/widgets/step_header.dart';
 
 enum PhotoType { bl }
 
-class TakePhotoView extends StatefulWidget {
+class TransportDocumentView extends StatefulWidget {
   final int registroId;
   final PhotoType photoType;
 
-  const TakePhotoView({
+  const TransportDocumentView({
     super.key,
     required this.registroId,
     required this.photoType,
   });
 
   @override
-  State<TakePhotoView> createState() => _TakePhotoViewState();
+  State<TransportDocumentView> createState() => _TransportDocumentViewState();
 }
 
-class _TakePhotoViewState extends State<TakePhotoView> {
+class _TransportDocumentViewState extends State<TransportDocumentView> {
   final RegistroService _registroService = RegistroService();
   final ImageHelper _imageHelper = ImageHelper();
 
@@ -32,6 +32,7 @@ class _TakePhotoViewState extends State<TakePhotoView> {
   File? _capturedImage;
   String? _tipoVehiculo;
   bool _isLoadingType = true;
+  bool _hasNoBL = false;
 
   @override
   void initState() {
@@ -121,13 +122,63 @@ class _TakePhotoViewState extends State<TakePhotoView> {
             _buildInstructionCard(
               "Por favor, captura una foto clara del documento de transporte (BL o Guía).",
             ),
+            if (_tipoVehiculo == 'Vehiculo Menor') ...[
+              const SizedBox(height: 16),
+              GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _hasNoBL = !_hasNoBL;
+                    if (_hasNoBL) {
+                      _capturedImage = null; // Clear image if they check the box
+                    }
+                  });
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: _hasNoBL ? AppColors.accent.withAlpha(26) : AppColors.surface,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: _hasNoBL ? AppColors.accent : AppColors.border,
+                      width: _hasNoBL ? 2 : 1,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        _hasNoBL ? Icons.check_box : Icons.check_box_outline_blank,
+                        color: _hasNoBL ? AppColors.accent : AppColors.textSecondary,
+                        size: 28,
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Text(
+                          "No aplica / No tengo BL",
+                          style: TextStyle(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(height: 24),
-            _buildPhotoCard(
-              "Documento (BL)",
-              "Toca para capturar",
-              _capturedImage,
-              Icons.description,
-              _takePicture,
+            IgnorePointer(
+              ignoring: _hasNoBL,
+              child: Opacity(
+                opacity: _hasNoBL ? 0.4 : 1.0,
+                child: _buildPhotoCard(
+                  "Documento (BL)",
+                  "Toca para capturar",
+                  _capturedImage,
+                  Icons.description,
+                  _takePicture,
+                ),
+              ),
             ),
             const SizedBox(height: 32),
             if (_isUploading || _isLoadingType)
@@ -165,11 +216,11 @@ class _TakePhotoViewState extends State<TakePhotoView> {
                   ),
                 ),
               )
-            else if (_tipoVehiculo == 'Vehiculo Menor')
+            else if (_hasNoBL)
               SizedBox(
                 width: double.infinity,
                 height: 54,
-                child: OutlinedButton.icon(
+                child: ElevatedButton.icon(
                   onPressed: () {
                     Navigator.of(context).pushReplacement(
                       MaterialPageRoute(
@@ -177,17 +228,19 @@ class _TakePhotoViewState extends State<TakePhotoView> {
                       ),
                     );
                   },
-                  icon: const Icon(Icons.skip_next),
+                  icon: const Icon(Icons.arrow_forward),
                   label: const Text(
-                    "NO APLICA AL BL",
+                    "CONTINUAR SIN BL",
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.accent, // Acento enlace
-                    side: const BorderSide(color: AppColors.border),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.surface,
+                    foregroundColor: AppColors.textPrimary,
+                    side: const BorderSide(color: AppColors.accent, width: 2),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
+                    elevation: 0,
                   ),
                 ),
               ),

@@ -5,8 +5,8 @@ import 'package:prueba_match/models/license_data.dart';
 import 'package:prueba_match/models/chofer_match_data.dart';
 import 'package:prueba_match/services/registro_service.dart';
 import 'package:prueba_match/widgets/step_header.dart';
-import 'package:prueba_match/views/take_photo_view.dart';
-import 'package:prueba_match/screens/face_match_screen.dart';
+import 'package:prueba_match/views/transport_document_view.dart';
+import 'package:prueba_match/screens/license_scan_screen.dart';
 
 class IDScanView extends StatefulWidget {
   final int registroId;
@@ -38,13 +38,12 @@ class _IDScanViewState extends State<IDScanView> {
     });
 
     try {
-      // 1. Navegar a FaceMatchScreen (Modo Scan) y esperar resultado
+      // 1. Navegar a LicenseScanScreen y esperar resultado
       final LicenseData? confirmedData = await Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => FaceMatchScreen(
+          builder: (context) => LicenseScanScreen(
             registroId: widget.registroId,
-            mode: FaceMatchMode.scanOnly,
             existingChoferData: widget.datosChoferCarnet,
           ),
         ),
@@ -72,7 +71,7 @@ class _IDScanViewState extends State<IDScanView> {
         if (mounted) {
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
-              builder: (context) => TakePhotoView(
+              builder: (context) => TransportDocumentView(
                 registroId: widget.registroId,
                 photoType: PhotoType.bl,
               ),
