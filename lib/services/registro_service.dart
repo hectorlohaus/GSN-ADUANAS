@@ -131,6 +131,27 @@ class RegistroService {
     }
   }
 
+  Future<ResultadoVerificacion> verificarEstadoLicenciaPorRut(String rut) async {
+    try {
+      final rutFormateado = RutUtils.format(rut);
+      final response = await _client
+          .from('choferes')
+          .select('id_chofer')
+          .eq('rut_chofer', rutFormateado)
+          .maybeSingle();
+
+      if (response == null) {
+        return ResultadoVerificacion(estado: EstadoVerificacionChofer.noExiste);
+      }
+
+      final int idChofer = response['id_chofer'] as int;
+      return await verificarEstadoLicencia(idChofer);
+    } catch (e) {
+      debugPrint('Error al verificar estado de licencia por RUT: $e');
+      rethrow;
+    }
+  }
+
   Future<void> asociarChoferARegistro(int registroId, int choferId) async {
     try {
       await _client
@@ -562,12 +583,11 @@ class RegistroService {
     try {
       final fechaStr = DateFormat('yyyy-MM-dd').format(fecha);
 
-      // 1. Obtener todos los bloques configurados (desde la tabla o RPC)
-      // Usamos el RPC existente que nos da la base.
-      final responseBloques = await _client.rpc(
-        'get_bloques_disponibles',
-        params: {'fecha_seleccionada': fechaStr},
-      );
+      // 1. Obtener todos los bloques configurados directamente de la tabla
+      final responseBloques = await _client
+          .from('bloques_horarios')
+          .select()
+          .order('id_bloque', ascending: true);
       final todosLosBloques = List<Map<String, dynamic>>.from(responseBloques);
 
       // 2. Obtener conteo de agendamientos para esa fecha

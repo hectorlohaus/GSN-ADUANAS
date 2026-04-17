@@ -4,7 +4,7 @@ import 'package:prueba_match/models/chofer_match_data.dart';
 import 'package:prueba_match/screens/face_match_screen.dart';
 import 'package:prueba_match/services/registro_service.dart';
 import 'package:prueba_match/views/id_scan_view.dart';
-import 'package:prueba_match/views/transport_document_view.dart';
+
 import 'package:prueba_match/widgets/step_header.dart';
 // import '../facetec_service.dart'; // FACETEC EXCLUDED
 
@@ -71,40 +71,21 @@ class _VerificationViewState extends State<VerificationView> {
           resultado.datosChofer!,
         );
 
-        // 3. Verifica estado de la licencia asociada
-        final resultLicencia = await _registroService.verificarEstadoLicencia(choferId);
-        
-        // 4. Espera un momento y navega a la siguiente pantalla correcta.
+        // 3. Espera un momento y navega siempre a IDScanView (paso 3).
+        //    IDScanView se encarga de verificar la licencia y mostrar
+        //    el resultado antes de avanzar al paso 4.
         await Future.delayed(const Duration(seconds: 2));
         if (mounted) {
-          if (resultLicencia.estado == EstadoVerificacionChofer.valido) {
-            // Chofer y licencia válidos -> Saltamos directo a fotos de container
-            Navigator.of(context).pushReplacement(
-              MaterialPageRoute(
-                builder: (context) => TransportDocumentView(
-                  registroId: widget.registroId,
-                  photoType: PhotoType.bl, 
-                 ),
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (context) => IDScanView(
+                registroId: widget.registroId,
+                datosChoferCarnet: datosChoferDesdeDB,
               ),
-            );
-          } else {
-            // Licencia no existe o está vencida -> Ir a escaneo
-            setState(() {
-              _statusMessage = 'Licencia no válida o no encontrada. Preparando escáner...';
-            });
-            await Future.delayed(const Duration(seconds: 1));
-            if (mounted) {
-              Navigator.of(context).pushReplacement(
-                MaterialPageRoute(
-                  builder: (context) => IDScanView(
-                    registroId: widget.registroId,
-                    datosChoferCarnet: datosChoferDesdeDB,
-                  ),
-                ),
-              );
-            }
-          }
+            ),
+          );
         }
+
       } else {
         String message;
         switch (resultado.estado) {

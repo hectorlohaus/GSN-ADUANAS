@@ -48,3 +48,4 @@ app.*.map.json
 lib/services/supabase_service.dart
 DOCUMENTACION_API.md
 bd/
+*.sql

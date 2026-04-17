@@ -11,10 +11,7 @@ import 'package:prueba_match/views/custom_camera_view.dart';
 class FaceMatchScreen extends StatefulWidget {
   final int registroId;
 
-  const FaceMatchScreen({
-    super.key,
-    required this.registroId,
-  });
+  const FaceMatchScreen({super.key, required this.registroId});
 
   @override
   State<FaceMatchScreen> createState() => _FaceMatchScreenState();
@@ -36,7 +33,9 @@ class _FaceMatchScreenState extends State<FaceMatchScreen> {
     final File? file = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => CustomCameraView(mode: isSelfie ? CameraMode.selfie : CameraMode.document),
+        builder: (context) => CustomCameraView(
+          mode: isSelfie ? CameraMode.selfie : CameraMode.document,
+        ),
       ),
     );
     if (file != null) {
@@ -98,7 +97,8 @@ class _FaceMatchScreenState extends State<FaceMatchScreen> {
         run: docData['rut'],
         nacionalidad: docData['nacionalidad'],
         sexo: docData['sexo'], // Mapeado desde el nuevo JSON
-        fechaEmision: docData['fecha_emision'], // Mapeado correctamente desde 'fecha_emision'
+        fechaEmision:
+            docData['fecha_emision'], // Mapeado correctamente desde 'fecha_emision'
         fechaNacimiento: docData['fecha_nacimiento'],
         fechaVencimiento: docData['fecha_vencimiento'],
         numeroDocumento: docData['numero_documento'],
@@ -143,7 +143,8 @@ class _FaceMatchScreenState extends State<FaceMatchScreen> {
   @override
   Widget build(BuildContext context) {
     const String title = "Verificación Facial";
-    const String instruction = "Por favor, captura una selfie clara y una foto de tu documento de identidad.";
+    const String instruction =
+        "Por favor, captura una selfie clara y una foto de tu documento de identidad.";
 
     return Scaffold(
       appBar: AppBar(
@@ -198,10 +199,7 @@ class _FaceMatchScreenState extends State<FaceMatchScreen> {
                   icon: const Icon(Icons.check_circle_outline),
                   label: const Text(
                     "VALIDAR IDENTIDAD",
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.accent, // Acento
@@ -229,7 +227,10 @@ class _FaceMatchScreenState extends State<FaceMatchScreen> {
       ),
       child: Row(
         children: [
-          const Icon(Icons.info_outline, color: AppColors.accent), // Ícono destacado
+          const Icon(
+            Icons.info_outline,
+            color: AppColors.accent,
+          ), // Ícono destacado
           const SizedBox(width: 12),
           Expanded(
             child: Text(
@@ -317,10 +318,15 @@ class _FaceMatchScreenState extends State<FaceMatchScreen> {
                   child: Container(
                     padding: const EdgeInsets.all(6),
                     decoration: const BoxDecoration(
-                      color: AppColors.surface, // Ocultar superposición brillante
+                      color:
+                          AppColors.surface, // Ocultar superposición brillante
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.edit, size: 20, color: AppColors.accent),
+                    child: const Icon(
+                      Icons.edit,
+                      size: 20,
+                      color: AppColors.accent,
+                    ),
                   ),
                 ),
               if (hasFile)
@@ -330,7 +336,8 @@ class _FaceMatchScreenState extends State<FaceMatchScreen> {
                   right: 0,
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 8),
-                    color: AppColors.background26, // Overlay semi-transparente oscuro
+                    color: AppColors
+                        .background26, // Overlay semi-transparente oscuro
                     child: Text(
                       title.toUpperCase(),
                       textAlign: TextAlign.center,

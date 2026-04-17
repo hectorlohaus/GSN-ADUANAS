@@ -7,6 +7,7 @@ import 'package:prueba_match/views/vehicle_data_view.dart';
 import 'package:prueba_match/utils/image_helper.dart';
 import 'package:prueba_match/views/custom_camera_view.dart';
 import 'package:prueba_match/widgets/step_header.dart';
+import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 
 enum PhotoType { bl }
 
@@ -33,6 +34,7 @@ class _TransportDocumentViewState extends State<TransportDocumentView> {
   String? _tipoVehiculo;
   bool _isLoadingType = true;
   bool _hasNoBL = false;
+  bool _isRecognizing = false;
 
   @override
   void initState() {
@@ -99,6 +101,85 @@ class _TransportDocumentViewState extends State<TransportDocumentView> {
         });
       }
     }
+  }
+
+  Future<void> _validateAndUpload() async {
+    if (_capturedImage == null) return;
+    setState(() => _isRecognizing = true);
+
+    try {
+      final inputImage = InputImage.fromFile(_capturedImage!);
+      final textRecognizer = TextRecognizer(script: TextRecognitionScript.latin);
+      final RecognizedText recognizedText = await textRecognizer.processImage(inputImage);
+      await textRecognizer.close();
+
+      final upperText = recognizedText.text.toUpperCase();
+      
+      final List<String> blKeywords = [
+        'BILL OF LADING', 'B/L', 'BILL', 'LADING', 'GUIA DE DESPACHO',
+        'GUÍA DE DESPACHO', 'SHIPPER', 'CONSIGNEE', 'MAERSK', 'MSC',
+        'CONTAINER', 'VESSEL', 'VOYAGE', 'PORT OF', 'DELIVERY ORDER',
+        'RUT', 'PACKING LIST', 'INVOICE', 'OCEAN'
+      ];
+
+      int keywordCount = 0;
+      for (var keyword in blKeywords) {
+        if (upperText.contains(keyword)) {
+          keywordCount++;
+        }
+      }
+
+      if (keywordCount >= 1) {
+         // Valido
+         setState(() => _isRecognizing = false);
+         _confirmAndUpload();
+      } else {
+         // Fallo validacion oculta
+         setState(() => _isRecognizing = false);
+         _showValidationWarning();
+      }
+    } catch (e) {
+       debugPrint("Error extrayendo texto OCR: $e");
+       setState(() => _isRecognizing = false);
+       _showValidationWarning(); // Ante error, mostrar advertencia
+    }
+  }
+
+  void _showValidationWarning() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: const Row(
+           children: [
+             Icon(Icons.warning_amber_rounded, color: AppColors.warning),
+             SizedBox(width: 8),
+             Text("Validación Dudosa", style: TextStyle(color: AppColors.textPrimary, fontSize: 18)),
+           ]
+        ),
+        content: const Text(
+          "El documento escaneado no parece ser un Bill of Lading o Guía de Despacho válido.\n\n¿Deseas intentarlo de nuevo (asegurando buena iluminación y enfoque) o continuar bajo tu responsabilidad?",
+          style: TextStyle(color: AppColors.textSecondary, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx); // Cierra popup
+              _takePicture(); // Abre camara
+            },
+            child: const Text("Reintentar Foto"),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _confirmAndUpload(); // Forzar
+            },
+            child: const Text("Usar de todas formas", style: TextStyle(color: AppColors.warning)),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -181,15 +262,17 @@ class _TransportDocumentViewState extends State<TransportDocumentView> {
               ),
             ),
             const SizedBox(height: 32),
-            if (_isUploading || _isLoadingType)
+            if (_isUploading || _isLoadingType || _isRecognizing)
               Column(
                 children: [
                   const CircularProgressIndicator(color: AppColors.accent),
                   const SizedBox(height: 16),
                   Text(
-                    _isUploading ? "Guardando documento..." : "Cargando...",
+                    _isUploading ? "Guardando documento..." 
+                    : _isRecognizing ? "Validando documento..." 
+                    : "Cargando...",
                     style: const TextStyle(
-                      color: AppColors.textSecondary, // Text Secondary
+                      color: AppColors.textSecondary,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -200,7 +283,7 @@ class _TransportDocumentViewState extends State<TransportDocumentView> {
                 width: double.infinity,
                 height: 54,
                 child: ElevatedButton.icon(
-                  onPressed: _confirmAndUpload,
+                  onPressed: _validateAndUpload,
                   icon: const Icon(Icons.check_circle_outline),
                   label: const Text(
                     "CONFIRMAR DOCUMENTO",

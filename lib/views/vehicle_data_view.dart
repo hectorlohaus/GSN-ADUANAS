@@ -20,6 +20,33 @@ class _VehicleDataViewState extends State<VehicleDataView> {
   final _registroService = RegistroService();
 
   bool _isLoading = false;
+  bool _isInitLoading = true;
+  String? _tipoVehiculo;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadVehicleType();
+  }
+
+  Future<void> _loadVehicleType() async {
+    try {
+      final tipo = await _registroService.obtenerTipoVehiculo(widget.registroId);
+      if (mounted) {
+        setState(() {
+          _tipoVehiculo = tipo;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading vehicle type: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isInitLoading = false;
+        });
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -73,13 +100,15 @@ class _VehicleDataViewState extends State<VehicleDataView> {
         foregroundColor: AppColors.textPrimary,
         elevation: 0,
       ),
-      body: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
+      body: _isInitLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Form(
+              key: _formKey,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
               const StepHeader(
                 currentStep: 5,
                 title: 'Datos del Vehículo',
@@ -100,21 +129,18 @@ class _VehicleDataViewState extends State<VehicleDataView> {
                   return null;
                 },
               ),
-              const SizedBox(height: 24),
-              TextFormField(
-                controller: _containerController,
-                decoration: const InputDecoration(
-                  labelText: 'Identificador del Container',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.inventory_2_outlined),
+              if (_tipoVehiculo != 'Vehiculo Menor') ...[
+                const SizedBox(height: 24),
+                TextFormField(
+                  controller: _containerController,
+                  decoration: const InputDecoration(
+                    labelText: 'Identificador del Container (Opcional)',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.inventory_2_outlined),
+                  ),
+                  // Opcional para Vehículo Mayor
                 ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Este campo es obligatorio.';
-                  }
-                  return null;
-                },
-              ),
+              ],
               const SizedBox(height: 40),
               if (_isLoading)
                 const Center(child: CircularProgressIndicator())
